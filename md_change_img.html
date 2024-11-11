@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #change_img{
+            width: 100%;
+            height: 1000px;
+            background-color: burlywood;
+        }
+    </style>
+</head>
+    <body>
+        <!-- 替换md文件中图片为base64格式 -->
+        <p>替换md文件中图片为base64格式</p>
+        <div id="change_img">
+            <p>step 1: 选择要替换图片为base64格式的md文件</p>
+            <input type="file" name="file" id="file-list">
+            <progress id="progress" value="0" max="100"></progress>
+            <div id="input"></div>
+            <p>step 2: 请上传本地以下文件夹中所有图片</p>
+            <input type="file" name="file" id="image-list" multiple>
+            <p id="pics_base"></p>
+            <p>step 3: 请选择图片替换方式</p>
+            <!-- ![img](data:image/jpeg;base64,...) -->
+            <button id="method_1">原地替换图片</button>
+            <!-- ![img][name_id] -->
+            <button id="method_2">文末引用图片</button>
+            <div id="output"></div>
+            <p>step 4: 将以上输出内容复制回typora中</p>
+        </div>
+        
+
+    </body>
+</html>
+<script>
+   (function() {
+       var map = new Map();
+        // 初始文件内容
+       var content = '';
+        // 原始文件图片数组 ![]()
+       var picurl_arr = [];
+        // 文件内图片名称数组  ***.png
+       var picsname_arr = [];
+        // 选择文件
+        let file = document.getElementById('file-list');
+        file.addEventListener('change', (event) => {
+            let files = event.target.files,
+            i = 0,
+            len = files.length;
+            console.log(files);
+
+            while (i < len) {
+                const f = files[i];
+                console.log(`${f.name} (${f.type}, ${f.size}), bytes`);
+                i++;
+            }
+            let info = '',
+                input = document.getElementById('input'),
+                progress = document.getElementById('progress'),
+                type = 'default',
+                reader = new FileReader();
+                if (/image/.test(files[0].type)) {
+                    reader.readAsDataURL(files[0]);
+                    type = 'image'
+                } else {
+                    reader.readAsText(files[0]);
+                    type = 'text'
+                }
+                reader.onerror = function () {
+                    input.innerHTML = 'could ont read file, error is' + reader.error.code;
+                }
+                reader.onprogress = function(event) {
+                    if (event.lengthComputable) {
+                        // progress.innerHTML = `${event.loaded}/ ${event.total}`;
+                        console.log(progress)
+                        progress.setAttribute('value', event.loaded);
+                        progress.setAttribute('max', event.total);
+                    }
+                }
+                reader.onload = function() {
+                    let html = '';
+                    content = reader.result;
+                    picurl_arr = content.match(/\!\[.*\]\(.*\)/g);
+                    console.log('==========文件内图片数组==========\n',picurl_arr)
+                    // TODO:图片解析错 
+                    
+                    let pics_base = decodeURI(picurl_arr[0]).match( /(file:[\/\\]{2}([\/\\]\w\:[\/\\])(\w*[\/\\])*|\w:.*|([\u4E00-\u9FA5\w\_\s\-\.]*[\/\\]))/g )[0];
+                    console.log('===========图片文件夹地址（有时候是图片文件地址）============\n', pics_base);
+                    document.getElementById('pics_base').innerHTML = pics_base;
+                    // TODO:图片名称解析错
+
+                    picsname_arr = picurl_arr.map(item => {
+                        let picurl = decodeURI(item);
+                        picurl = picurl.match(/[\u4E00-\u9FA5\w_\s\-]+\.+(jpg|png|JPG|PNG|jpeg|JPEG|gif|GIF)/g)?.[0];
+                        return picurl;
+                    });
+                    console.log('=============文件内图片名称数组==============\n',picsname_arr)
+                    switch(type) {
+                        case "image":
+                            html = `<img src="${reader.result}">`;
+                            break;
+                        case "text":
+                            html = `<textarea rows="20" cols="100">${content}</textarea>`;
+                            break;
+                    }
+                    input.innerHTML = html;
+                    
+                }
+        });
+        // 批量转图片为base64
+        let imgFile = document.getElementById('image-list');
+        imgFile.addEventListener('change', (event) => {
+            let files = event.target.files,
+            i = 0,
+            len = files.length;
+            console.log(files, typeof files);
+            for (let item of files) {
+                if (/image/.test(item.type)) {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(item);
+                    type = 'image';
+                    reader.onload = function() {
+                        map.set(item.name, reader.result);
+                        console.log(item.name, reader.result);
+                    }
+                }
+            }
+        })
+        
+        // method_1">![img](data:image/jpeg;base64,...)
+        const method_1 = document.getElementById('method_1');
+        method_1.addEventListener('click', function() {
+            let method_1_content = content;
+            picurl_arr.forEach((url, index) => {
+                let picurl = url.replace(/\!\[.*\]\(/,'').replace(')', '');
+                console.log(`\n${map.get(picsname_arr[index])}\n`)
+                method_1_content = method_1_content.replace(picurl, `\n${map.get(picsname_arr[index])}\n`)
+            });
+            document.getElementById('output').innerHTML = `<textarea rows="20" cols="100">${method_1_content}</textarea>`;
+        });
+        // method_2
+        const method_2 = document.getElementById('method_2');
+        method_2.addEventListener('click', function() {
+            let method_2_content = content;
+            picurl_arr.forEach((url, index) => {
+                method_2_content += '\n\n';
+                method_2_content = method_2_content.replace(url, `![image][${picsname_arr[index]}]`);
+                method_2_content += `[${picsname_arr[index]}]: ${map.get(picsname_arr[index])}`;
+            });
+            document.getElementById('output').innerHTML = `<textarea rows="20" cols="100">${method_2_content}</textarea>`;
+        });
+   })();
+</script>
