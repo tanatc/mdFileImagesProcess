@@ -1,8 +1,7 @@
 # md文件中图片转换工具
 
-工具连接：两个链接页是一样的。
-链接 1 ：http://1.14.62.37:9000/md_change_img.html
-链接 2 ：https://tanatc.gitee.io/md-file-images-process/md_change_img.html
+工具连接：https://tanatc.github.io/mdFileImagesProcess/md_change_img.html
+附图文章说明链接：https://tanatc.github.io/mdFileImagesProcess/
 
 #### 1.工具开发背景
 
